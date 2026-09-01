@@ -371,6 +371,16 @@ function ownershipForProject(p){
 }
 
 
+
+function setProcessing(on,msg='Processing data…'){
+ const el=document.getElementById('processingOverlay');
+ if(!el)return;
+ el.style.display=on?'flex':'none';
+ const t=document.getElementById('processingText');
+ if(t)t.textContent=msg;
+}
+function nextFrame(){return new Promise(resolve=>setTimeout(resolve,0))}
+
 function showToast(msg,type='info'){
  const el=document.getElementById('appToast');
  if(!el)return;
@@ -381,7 +391,7 @@ function showToast(msg,type='info'){
  window.__toastTimer=setTimeout(()=>{el.style.display='none'},3200);
 }
 
-const S={mapMaster:[],mapCRM:[],map:[],mapFiltered:[],crmAll:[],nc:[],ncFiltered:[],agency:[],crmGap:[],gap:[],gapFiltered:[],filters:{map:{},nc:{},gap:{}},page:{map:1,nc:1,gap:1},pageSize:250,mailCRM:'4QT',mail:{}};
+const S={mapMaster:[],mapCRM:[],map:[],mapFiltered:[],crmAll:[],nc:[],ncFiltered:[],agency:[],crmGap:[],gap:[],gapFiltered:[],filters:{map:{},nc:{},gap:{}},page:{map:1,nc:1,gap:1},pageSize:100,mailCRM:'4QT',mail:{}};
 const OFFICIAL={'meta-mv':'META-MV','xd':'XD','xdd':'XDD','xdpl':'XDPL','gt':'GT','gtpl':'GTPL','gtaw':'GTAW','ajn':'AJN','ppc':'PPC','new discovery':'New Discovery','digital marketing':'Digital Marketing','in house whatsapp':'IN HOUSE WHATSAPP'};
 const SOURCE_MASTER={'META-MV':['Maven','Meta Ads'],'XD':['XD','Search Ads'],'XDD':['XD','Demand Gen'],'XDPL':['XD','Platter'],'GT':['GTF','Search Ads Google'],'GTPL':['GTF','Platter'],'GTAW':['GTF','Video Ads'],'AJN':['Aajneeti','Meta Ads'],'PPC':['Marasim','Verified Leads'],'New Discovery':['GTF','Demand Gen'],'Digital Marketing':['XD','Meta Ads'],'IN HOUSE WHATSAPP':['IN HOUSE WHATSAPP','WhatsApp Campaign']};
 
@@ -456,28 +466,78 @@ function parseCSVText(text){
 }
 function readFile(f){return new Promise((res,rej)=>{let ext=(f.name.split('.').pop()||'').toLowerCase(),fr=new FileReader();fr.onload=e=>{try{let bytes=new Uint8Array(e.target.result);if(ext==='csv'){res(parseCSVText(new TextDecoder('utf-8').decode(bytes)));return}if(window.XLSX){let wb=XLSX.read(bytes,{type:'array'}),out=[];for(let sn of wb.SheetNames){out=out.concat(XLSX.utils.sheet_to_json(wb.Sheets[sn],{defval:''}))}res(out);return}rej(new Error('Excel support is still loading or unavailable. Try again when the Excel engine is ready.'))}catch(err){rej(err)}};fr.onerror=rej;fr.readAsArrayBuffer(f)})}
 async function readMany(files){let a=[];for(let f of files)a=a.concat(await readFile(f));return a}
-function bind(id,key,statusId){document.getElementById(id).onchange=async e=>{try{S[key]=await readMany([...e.target.files]);document.getElementById(statusId).textContent=`Loaded ${S[key].length} rows`}catch(err){document.getElementById(statusId).textContent=err.message}}}
+function bind(id,key,statusId){document.getElementById(id).onchange=async e=>{let st=document.getElementById(statusId);try{st.textContent='Reading file…';await nextFrame();S[key]=await readMany([...e.target.files]);st.textContent=`Loaded ${S[key].length.toLocaleString()} rows`}catch(err){st.textContent=err.message}}}
 bind('mapMaster','mapMaster','mapMasterS');bind('mapCRM','mapCRM','mapCRMS');bind('crmAll','crmAll','crmAllS');bind('agencyFile','agency','agencyS');bind('crmGapFile','crmGap','crmGapS');
 
 function normalizedProject(v){return norm(v).replace(/[^a-z0-9\s]/g,' ').replace(/\s+/g,' ').trim()}
 function similarity(a,b){
  let A=new Set(normalizedProject(a).split(' ').filter(Boolean)),B=new Set(normalizedProject(b).split(' ').filter(Boolean));if(!A.size||!B.size)return 0;let x=0;A.forEach(t=>{if(B.has(t))x++});return 2*x/(A.size+B.size)
 }
-function generateMapping(){
+async function generateMapping(){
  if(!S.mapMaster.length||!S.mapCRM.length)return showToast('Upload Mapping From Our Side and CRM Master data.','error');
- const exact=new Map();
- S.mapMaster.forEach(m=>{let p=normalizedProject(project(m)),s=norm(officialSource(source(m))),c=norm(crmname(m)),k=[c,p,s].join('|');if(!exact.has(k))exact.set(k,[]);exact.get(k).push(m);let k2=['',p,s].join('|');if(!exact.has(k2))exact.set(k2,[]);exact.get(k2).push(m)});
- S.map=S.mapCRM.map(r=>{
-  let p=project(r),s=officialSource(source(r)),c=resolvedCRM(r),actualCC=costCentre(r),actualSH=salesHead(r),d=datev(r),cands=exact.get([norm(c),normalizedProject(p),norm(s)].join('|'))||exact.get(['',normalizedProject(p),norm(s)].join('|'))||[],reason='Exact CRM + Project + Source';
-  if(!cands.length){let scored=S.mapMaster.filter(m=>!source(m)||norm(officialSource(source(m)))===norm(s)).map(m=>({m,score:similarity(p,project(m))})).sort((x,y)=>y.score-x.score);if(scored[0]&&scored[0].score>=.86){cands=[scored[0].m];reason='Possible BPL Match'}else reason='No Mapping Master Record'}
-  let m=cands[0]||{},agency=agencyv(m)||sourceInfo(s)[0],expectedSH=salesHead(m),expectedCC=costCentre(m),result='UNABLE TO VALIDATE',action='Review mapping master';
-  let own=ownershipForProject(p);
-  if(own){if(!expectedSH&&own.salesHead)expectedSH=own.salesHead;if(!expectedCC&&own.cc.length===1)expectedCC=own.cc[0]}
-  if(reason==='Possible BPL Match'){result='POSSIBLE MATCH';action='Confirm BPL project name'}
-  else if(cands.length){let ccOK=expectedCC&&actualCC?norm(expectedCC)===norm(actualCC):null,shOK=expectedSH&&actualSH?norm(expectedSH)===norm(actualSH):null;if(ccOK===false){result='WRONG MAPPING';reason='Cost Centre Person Mismatch';action='Map to expected Cost Centre Person'}else if(shOK===false){result='WRONG MAPPING';reason='Sales Head Mismatch';action='Review Sales Head mapping'}else if(ccOK===true||shOK===true){result='CORRECT';reason='Expected ownership matches CRM';action='No action'}else{reason='Ownership Field Missing';action='Check Cost Centre Person / Sales Head'}}
-  return {Date:d,CRM:c,'Project Name (BPL)':p,'Source/Sub-source':s,'Agency Name':agency,'Sales Head':expectedSH||actualSH,'Expected Cost Centre Person':expectedCC,'Actual Cost Centre Person':actualCC,'Mapping Result':result,'Match Reason':reason,'Should Be Mapped To':expectedCC,'Recommended Action':action}
- });
- buildFilters('map',[['CRM','CRM'],['Project','Project Name (BPL)'],['Source','Source/Sub-source'],['Agency Name','Agency Name'],['Sales Head','Sales Head'],['Cost Centre Person','Expected Cost Centre Person'],['Actual Cost Centre Person','Actual Cost Centre Person'],['Mapping Result','Mapping Result']],S.map);S.page.map=1;mapArea.style.display='block';renderMap()
+ setProcessing(true,`Checking ${S.mapCRM.length.toLocaleString()} CRM rows…`);
+ await nextFrame();
+ try{
+   const exact=new Map(), bySource=new Map(), fuzzyCache=new Map();
+
+   for(const mm of S.mapMaster){
+     const np=normalizedProject(project(mm)), os=officialSource(source(mm)), ns=norm(os), c=norm(crmname(mm));
+     const k=[c,np,ns].join('|'), k2=['',np,ns].join('|');
+     if(!exact.has(k))exact.set(k,[]); exact.get(k).push(mm);
+     if(!exact.has(k2))exact.set(k2,[]); exact.get(k2).push(mm);
+     if(!bySource.has(ns))bySource.set(ns,[]); bySource.get(ns).push({m:mm,np});
+   }
+
+   const out=new Array(S.mapCRM.length);
+   for(let i=0;i<S.mapCRM.length;i++){
+     const r=S.mapCRM[i];
+     let p=project(r),np=normalizedProject(p),s=officialSource(source(r)),ns=norm(s),c=resolvedCRM(r),
+         actualCC=costCentre(r),actualSH=salesHead(r),d=datev(r),
+         cands=exact.get([norm(c),np,ns].join('|'))||exact.get(['',np,ns].join('|'))||[],
+         reason='Exact CRM + Project + Source';
+
+     if(!cands.length){
+       const ck=np+'|'+ns;
+       let cached=fuzzyCache.get(ck);
+       if(cached===undefined){
+         let best=null,bestScore=0;
+         const pool=bySource.get(ns)||[];
+         for(const item of pool){
+           const sc=similarity(np,item.np);
+           if(sc>bestScore){bestScore=sc;best=item.m}
+           if(bestScore===1)break;
+         }
+         cached=bestScore>=.86?best:null;
+         fuzzyCache.set(ck,cached);
+       }
+       if(cached){cands=[cached];reason='Possible BPL Match'} else reason='No Mapping Master Record';
+     }
+
+     let mm=cands[0]||{},agency=agencyv(mm)||sourceInfo(s)[0],expectedSH=salesHead(mm),expectedCC=costCentre(mm),
+         result='UNABLE TO VALIDATE',action='Review mapping master';
+     let own=ownershipForProject(p);
+     if(own){if(!expectedSH&&own.salesHead)expectedSH=own.salesHead;if(!expectedCC&&own.cc.length===1)expectedCC=own.cc[0]}
+
+     if(reason==='Possible BPL Match'){result='POSSIBLE MATCH';action='Confirm BPL project name'}
+     else if(cands.length){
+       let ccOK=expectedCC&&actualCC?norm(expectedCC)===norm(actualCC):null,
+           shOK=expectedSH&&actualSH?norm(expectedSH)===norm(actualSH):null;
+       if(ccOK===false){result='WRONG MAPPING';reason='Cost Centre Person Mismatch';action='Map to expected Cost Centre Person'}
+       else if(shOK===false){result='WRONG MAPPING';reason='Sales Head Mismatch';action='Review Sales Head mapping'}
+       else if(ccOK===true||shOK===true){result='CORRECT';reason='Expected ownership matches CRM';action='No action'}
+       else{reason='Ownership Field Missing';action='Check Cost Centre Person / Sales Head'}
+     }
+     out[i]={Date:d,CRM:c,'Project Name (BPL)':p,'Source/Sub-source':s,'Agency Name':agency,'Sales Head':expectedSH||actualSH,'Expected Cost Centre Person':expectedCC,'Actual Cost Centre Person':actualCC,'Mapping Result':result,'Match Reason':reason,'Should Be Mapped To':expectedCC,'Recommended Action':action};
+
+     if(i>0 && i%3000===0){
+       processingText.textContent=`Checked ${i.toLocaleString()} of ${S.mapCRM.length.toLocaleString()} rows`;
+       await nextFrame();
+     }
+   }
+   S.map=out;
+   buildFilters('map',[['CRM','CRM'],['Project','Project Name (BPL)'],['Source','Source/Sub-source'],['Agency Name','Agency Name'],['Sales Head','Sales Head'],['Cost Centre Person','Expected Cost Centre Person'],['Actual Cost Centre Person','Actual Cost Centre Person'],['Mapping Result','Mapping Result']],S.map);
+   S.page.map=1;mapArea.style.display='block';renderMap();
+ }finally{setProcessing(false)}
 }
 function parseDateLoose(v){let d=new Date(v);return isNaN(d)?null:d}
 function renderMap(){let a=applyFilters('map',S.map),q=norm(mapSearch.value),fd=mapFrom.value?new Date(mapFrom.value+'T00:00:00'):null,td=mapTo.value?new Date(mapTo.value+'T23:59:59'):null;if(fd||td)a=a.filter(r=>{let d=parseDateLoose(r.Date);if(!d)return false;return(!fd||d>=fd)&&(!td||d<=td)});if(q)a=a.filter(r=>norm(Object.values(r).join(' ')).includes(q));S.mapFiltered=a;let pages=Math.max(1,Math.ceil(a.length/S.pageSize));S.page.map=Math.min(S.page.map,pages);let view=a.slice((S.page.map-1)*S.pageSize,S.page.map*S.pageSize);mapCount.textContent=`${a.length} filtered / ${S.map.length} total`;mapPage.textContent=`Page ${S.page.map} of ${pages}`;mapBody.innerHTML=view.map(r=>`<tr class="${r['Mapping Result']==='WRONG MAPPING'?'red':r['Mapping Result']==='CORRECT'?'greenrow':'amber'}">${['CRM','Project Name (BPL)','Source/Sub-source','Agency Name','Sales Head','Expected Cost Centre Person','Actual Cost Centre Person','Mapping Result','Match Reason','Should Be Mapped To','Recommended Action'].map(k=>`<td>${r[k]??''}</td>`).join('')}</tr>`).join('')}
@@ -502,54 +562,34 @@ function isPerformanceSource(s){
  let ad=norm(sourceInfo(x)[1]);
  return ad.includes('meta')||ad.includes('google')||ad.includes('search')||ad.includes('demand gen')||ad.includes('video');
 }
-function generateNC(){
+async function generateNC(){
  let all=S.crmAll;
  if(!all.length)return showToast('Upload the combined CRM Master file.','error');
+ setProcessing(true,`Reviewing ${all.length.toLocaleString()} CRM rows…`);
+ await nextFrame();
+ try{
+   let g=new Map();
+   for(let i=0;i<all.length;i++){
+     let r=all[i], stRaw=status(r), st=norm(stRaw);
+     if(!(st==='new'||st.includes('not connected')))continue;
+     let s=officialSource(source(r)),crm=resolvedCRM(r),z=sourceInfo(s),
+         dt=datev(r),pr=project(r),sh=salesHead(r),cc=costCentre(r),
+         k=[crm,dt,pr,sh,cc,s,stRaw].join('|');
+     let row=g.get(k);
+     if(!row){
+       row={CRM:crm,Date:dt,Project:pr,'Sales Head':sh,'Cost Centre Person Name':cc,'CRM Source/Sub-source':s,'Agency Name':z[0],'Original CRM Status':stRaw,'New Count':0,'Not Connected Count':0,'Sales Follow-up Flag':''};
+       g.set(k,row);
+     }
+     if(st==='new')row['New Count']++; else row['Not Connected Count']++;
+     if(crm==='UNASSIGNED CRM')row['Sales Follow-up Flag']='CRM LOCATION REVIEW';
+     else row['Sales Follow-up Flag']=isPerformanceSource(s)?(window.CUSTOM_ALERT_LABEL||'PERFORMANCE LEAD - SALES ATTENTION'):'REVIEW';
 
- let g={};
- all.forEach(r=>{
-   let st=norm(status(r)),s=officialSource(source(r));
-   if(!(st==='new'||st.includes('not connected')))return;
-
-   let crm=resolvedCRM(r), z=sourceInfo(s);
-   let k=[crm,datev(r),project(r),salesHead(r),costCentre(r),s,status(r)].join('|');
-
-   g[k]??={
-     CRM:crm,
-     Date:datev(r),
-     Project:project(r),
-     'Sales Head':salesHead(r),
-     'Cost Centre Person Name':costCentre(r),
-     'CRM Source/Sub-source':s,
-     'Agency Name':z[0],
-     'Original CRM Status':status(r),
-     'New Count':0,
-     'Not Connected Count':0,
-     'Sales Follow-up Flag':''
-   };
-
-   if(st==='new')g[k]['New Count']++;
-   else g[k]['Not Connected Count']++;
-
-   if(crm==='UNASSIGNED CRM') g[k]['Sales Follow-up Flag']='CRM LOCATION REVIEW';
-   else g[k]['Sales Follow-up Flag']=isPerformanceSource(s)?(window.CUSTOM_ALERT_LABEL||'PERFORMANCE LEAD - SALES ATTENTION'):'REVIEW';
- });
-
- S.nc=Object.values(g);
- buildFilters('nc',[
-   ['CRM','CRM'],
-   ['Date','Date'],
-   ['Project','Project'],
-   ['Source','CRM Source/Sub-source'],
-   ['Agency','Agency Name'],
-   ['Sales Head','Sales Head'],
-   ['Cost Centre Person','Cost Centre Person Name'],
-   ['Status','Original CRM Status'],
-   ['Flag','Sales Follow-up Flag']
- ],S.nc);
- S.page.nc=1;
- ncArea.style.display='block';
- renderNC();
+     if(i>0 && i%5000===0){processingText.textContent=`Reviewed ${i.toLocaleString()} of ${all.length.toLocaleString()} rows`;await nextFrame()}
+   }
+   S.nc=[...g.values()];
+   buildFilters('nc',[['CRM','CRM'],['Date','Date'],['Project','Project'],['Source','CRM Source/Sub-source'],['Agency','Agency Name'],['Sales Head','Sales Head'],['Cost Centre Person','Cost Centre Person Name'],['Status','Original CRM Status'],['Flag','Sales Follow-up Flag']],S.nc);
+   S.page.nc=1;ncArea.style.display='block';renderNC();
+ }finally{setProcessing(false)}
 }
 function renderNC(){
  let a=applyFilters('nc',S.nc),q=norm(ncSearch.value);
@@ -583,6 +623,7 @@ function renderNC(){
  });
  ncSummaryBody.innerHTML=Object.values(sg)
    .sort((x,y)=>(y.New+y.NC)-(x.New+x.NC))
+   .slice(0,100)
    .map(r=>`<tr><td>${r.CRM}</td><td>${r.Source}</td><td>${r.Agency}</td><td>${r.New}</td><td>${r.NC}</td><td><b>${r.New+r.NC}</b></td></tr>`)
    .join('');
 
@@ -604,37 +645,59 @@ function countRowsByKey(rows){
  rows.forEach(r=>{let p=normalizedProject(project(r)),s=norm(officialSource(source(r))),d=norm(datev(r)),key=[d,p,s].join('|');m.set(key,(m.get(key)||0)+1)});
  return m;
 }
-function generateGap(){
+async function generateGap(){
  if(!S.agency.length||!S.crmGap.length)return showToast('Upload BOTH Agency Lead Generation File and CRM Lead Master File.','error');
- let crmCounts=countRowsByKey(S.crmGap);
- S.gap=S.agency.map(r=>{
-  let d=datev(r),p=project(r),s=officialSource(source(r)),a=agencyv(r),camp=campaign(r);
-  let claimed=Number(pick(r,['Agency Generated Leads','Generated Leads','Lead Count','Total Leads','Leads Generated','Generated']))||0;
-  if(!claimed)claimed=1;
-  let key=[norm(d),normalizedProject(p),norm(s)].join('|'),received=crmCounts.get(key)||0;
-  let dup=Number(pick(r,['Duplicate','Duplicates']))||0,test=Number(pick(r,['Test Lead','Test Leads','Test']))||0,other=Number(pick(r,['Other Rejection','Other Known Rejection','Rejected']))||0;
-  let explained=dup+test+other,unexplained=Math.max(0,claimed-received-explained),gapPct=claimed?unexplained/claimed:0;
-  let st=unexplained>0?'UNEXPLAINED GAP':explained>0?'EXPLAINED GAP':'MATCHED';
-  return {Date:d,Agency:a,Project:p,Source:s,Campaign:camp,'Agency Generated':claimed,'CRM Received':received,Duplicate:dup,'Test Lead':test,'Other Rejection':other,'Explained Difference':explained,'Unexplained Gap':unexplained,'Gap %':gapPct,Status:st,'Recommended Action':st==='UNEXPLAINED GAP'?'Investigate missing leads between agency and CRM':st==='EXPLAINED GAP'?'Review known rejection reasons':'No action'}
- });
- buildFilters('gap',[['Date','Date'],['Agency','Agency'],['Project','Project'],['Source','Source'],['Campaign','Campaign'],['Status','Status']],S.gap);S.page.gap=1;gapArea.style.display='block';renderGap()
+ setProcessing(true,'Reconciling agency and CRM data…'); await nextFrame();
+ try{
+   let crmCounts=countRowsByKey(S.crmGap), agg=new Map();
+
+   for(let i=0;i<S.agency.length;i++){
+     let r=S.agency[i],d=datev(r),p=project(r),s=officialSource(source(r)),a=agencyv(r),camp=campaign(r),
+         claimed=Number(pick(r,['Agency Generated Leads','Generated Leads','Lead Count','Total Leads','Leads Generated','Generated']))||0;
+     if(!claimed)claimed=1;
+     let key=[norm(d),normalizedProject(p),norm(s)].join('|'),
+         group=[d,a,p,s,camp].join('|'),
+         dup=Number(pick(r,['Duplicate','Duplicates']))||0,
+         test=Number(pick(r,['Test Lead','Test Leads','Test']))||0,
+         other=Number(pick(r,['Other Rejection','Other Known Rejection','Rejected']))||0;
+     let x=agg.get(group);
+     if(!x){x={Date:d,Agency:a,Project:p,Source:s,Campaign:camp,claimed:0,dup:0,test:0,other:0,crmKey:key};agg.set(group,x)}
+     x.claimed+=claimed;x.dup+=dup;x.test+=test;x.other+=other;
+     if(i>0&&i%5000===0){processingText.textContent=`Processed ${i.toLocaleString()} agency rows`;await nextFrame()}
+   }
+
+   S.gap=[...agg.values()].map(x=>{
+     let received=crmCounts.get(x.crmKey)||0,explained=x.dup+x.test+x.other,
+         unexplained=Math.max(0,x.claimed-received-explained),gapPct=x.claimed?unexplained/x.claimed:0,
+         st=unexplained>0?'UNEXPLAINED GAP':explained>0?'EXPLAINED GAP':'MATCHED';
+     return {Date:x.Date,Agency:x.Agency,Project:x.Project,Source:x.Source,Campaign:x.Campaign,'Agency Generated':x.claimed,'CRM Received':received,Duplicate:x.dup,'Test Lead':x.test,'Other Rejection':x.other,'Explained Difference':explained,'Unexplained Gap':unexplained,'Gap %':gapPct,Status:st,'Recommended Action':st==='UNEXPLAINED GAP'?'Investigate missing leads between agency and CRM':st==='EXPLAINED GAP'?'Review known rejection reasons':'No action'}
+   });
+
+   buildFilters('gap',[['Date','Date'],['Agency','Agency'],['Project','Project'],['Source','Source'],['Campaign','Campaign'],['Status','Status']],S.gap);
+   S.page.gap=1;gapArea.style.display='block';renderGap();
+ }finally{setProcessing(false)}
 }
 function renderGap(){let a=applyFilters('gap',S.gap),q=norm(gapSearch.value);if(q)a=a.filter(r=>norm(Object.values(r).join(' ')).includes(q));S.gapFiltered=a;let pages=Math.max(1,Math.ceil(a.length/S.pageSize));S.page.gap=Math.min(S.page.gap,pages);let view=a.slice((S.page.gap-1)*S.pageSize,S.page.gap*S.pageSize);gapCount.textContent=`${a.length} filtered / ${S.gap.length} total`;gapPage.textContent=`Page ${S.page.gap} of ${pages}`;gapBody.innerHTML=view.map(r=>`<tr class="${r.Status==='UNEXPLAINED GAP'?'red':r.Status==='MATCHED'?'greenrow':'amber'}">${['Date','Agency','Project','Source','Campaign','Agency Generated','CRM Received','Duplicate','Test Lead','Other Rejection','Explained Difference','Unexplained Gap','Gap %','Status','Recommended Action'].map(k=>`<td>${k==='Gap %'?(Number(r[k])*100).toFixed(1)+'%':r[k]??''}</td>`).join('')}</tr>`).join('')}
 
-function buildFilters(id,defs,rows){let host=document.getElementById(id+'Filters');host.innerHTML='';S.filters[id]={};defs.forEach(([lab,key])=>{let vals=[...new Set(rows.map(r=>String(r[key]??'').trim()).filter(Boolean))].sort();if(!vals.length)return;let d=document.createElement('div');d.innerHTML=`<label>${lab}</label><select><option value="">All</option>${vals.map(v=>`<option>${v}</option>`).join('')}</select>`;d.querySelector('select').onchange=e=>{S.filters[id][key]=e.target.value;S.page[id]=1;id==='map'?renderMap():id==='nc'?renderNC():renderGap()};host.appendChild(d)})}
-function applyFilters(id,rows){let f=S.filters[id]||{};return rows.filter(r=>Object.entries(f).every(([k,v])=>!v||String(r[k]??'')===v))}
-function clearFilters(id){S.filters[id]={};S.page[id]=1;if(id==='map'){mapFrom.value='';mapTo.value='';}document.querySelectorAll('#'+id+'Filters select').forEach(x=>x.value='');document.getElementById(id+'Search').value='';id==='map'?renderMap():id==='nc'?renderNC():renderGap()}
-function movePage(id,dir){let rows=id==='map'?S.mapFiltered:id==='nc'?S.ncFiltered:S.gapFiltered,pages=Math.max(1,Math.ceil(rows.length/S.pageSize));S.page[id]=Math.min(pages,Math.max(1,S.page[id]+dir));id==='map'?renderMap():id==='nc'?renderNC():renderGap()}
-function downloadReport(id,filtered){if(!window.XLSX)return showToast('Excel download support is unavailable right now.','error');let rows=id==='map'?(filtered?S.mapFiltered:S.map):id==='nc'?(filtered?S.ncFiltered:S.nc):(filtered?S.gapFiltered:S.gap),wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(rows),'Report');XLSX.writeFile(wb,`Lead_Leakage_${id}_${filtered?'Filtered':'Full'}.xlsx`)}
-
-
-
-const DEFAULT_CUSTOMIZATION = {
- title:'Performance Marketing Lead Control Dashboard',
- alertLabel:'PERFORMANCE LEAD - SALES ATTENTION',
- crmRules: JSON.parse(JSON.stringify(CRM_LOCATION_RULES)),
- owners: JSON.parse(JSON.stringify(OWNERSHIP_MASTER)),
- perfRules: JSON.parse(JSON.stringify(PERFORMANCE_SOURCE_RULES))
+function buildFilters(id,defs,rows){
+ let host=document.getElementById(id+'Filters');host.innerHTML='';S.filters[id]={};
+ defs.forEach(([lab,key])=>{
+   let set=new Set();
+   for(const r of rows){
+     let v=String(r[key]??'').trim();
+     if(v)set.add(v);
+     if(set.size>500)break;
+   }
+   if(!set.size)return;
+   let vals=[...set].sort(),d=document.createElement('div'),sel=document.createElement('select');
+   d.innerHTML=`<label>${lab}${set.size>500?' (use search for more)':''}</label>`;
+   sel.innerHTML='<option value="">All</option>';
+   let frag=document.createDocumentFragment();
+   vals.slice(0,500).forEach(v=>{let o=document.createElement('option');o.value=v;o.textContent=v;frag.appendChild(o)});
+   sel.appendChild(frag);
+   sel.onchange=e=>{S.filters[id][key]=e.target.value;S.page[id]=1;id==='map'?renderMap():id==='nc'?renderNC():renderGap()};
+   d.appendChild(sel);host.appendChild(d);
+ })
 };
 
 function loadCustomization(){
@@ -800,6 +863,13 @@ function setEngineStatus(){
 }
 setTimeout(setEngineStatus,0);setTimeout(loadCustomization,0);
 </script>
+
+<div id="processingOverlay" style="display:none;position:fixed;inset:0;background:rgba(15,35,50,.28);z-index:9998;align-items:center;justify-content:center">
+  <div style="background:#fff;border-radius:16px;padding:22px 26px;box-shadow:0 18px 50px rgba(0,0,0,.18);min-width:280px;text-align:center">
+    <div style="font-weight:800;color:#173f63;font-size:16px">Generating report…</div>
+    <div id="processingText" style="font-size:12px;color:#6a7887;margin-top:7px">Please wait</div>
+  </div>
+</div>
 <div class="app-footer">Performance Marketing Lead Control Dashboard</div>
 <div id="appToast"></div>
 </body>
