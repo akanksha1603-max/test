@@ -1,0 +1,77 @@
+[
+  {
+    "keyword": "nri",
+    "crm": "Lead Squared",
+    "priority": 100
+  },
+  {
+    "keyword": "greater noida",
+    "crm": "4QT",
+    "priority": 90
+  },
+  {
+    "keyword": "noida extension",
+    "crm": "4QT",
+    "priority": 90
+  },
+  {
+    "keyword": "noida west",
+    "crm": "4QT",
+    "priority": 90
+  },
+  {
+    "keyword": "gurugram",
+    "crm": "4QT",
+    "priority": 80
+  },
+  {
+    "keyword": "gurgaon",
+    "crm": "4QT",
+    "priority": 80
+  },
+  {
+    "keyword": "delhi",
+    "crm": "4QT",
+    "priority": 80
+  },
+  {
+    "keyword": "pune",
+    "crm": "4QT",
+    "priority": 80
+  },
+  {
+    "keyword": "bangalore",
+    "crm": "4QT",
+    "priority": 80
+  },
+  {
+    "keyword": "bengaluru",
+    "crm": "4QT",
+    "priority": 80
+  },
+  {
+    "keyword": "noida",
+    "crm": "4QT",
+    "priority": 70
+  },
+  {
+    "keyword": "mumbai",
+    "crm": "Lead Squared",
+    "priority": 80
+  },
+  {
+    "keyword": "hyderabad",
+    "crm": "Lead Squared",
+    "priority": 80
+  },
+  {
+    "keyword": "chennai",
+    "crm": "Lead Squared",
+    "priority": 80
+  },
+  {
+    "keyword": "kolkata",
+    "crm": "Lead Squared",
+    "priority": 80
+  }
+]

@@ -1,0 +1,92 @@
+[
+  {
+    "source": "IN HOUSE WHATSAPP",
+    "agency": "IN HOUSE WHATSAPP",
+    "channel": "WhatsApp campaign",
+    "performance": false
+  },
+  {
+    "source": "Digital Marketing",
+    "agency": "XD",
+    "channel": "Meta ads",
+    "performance": true
+  },
+  {
+    "source": "XD",
+    "agency": "XD",
+    "channel": "Search ads",
+    "performance": true
+  },
+  {
+    "source": "XDD",
+    "agency": "XD",
+    "channel": "Demand Gen",
+    "performance": true
+  },
+  {
+    "source": "XDPL",
+    "agency": "XD",
+    "channel": "Platter",
+    "performance": true
+  },
+  {
+    "source": "GT",
+    "agency": "GTF",
+    "channel": "Search Ads Google",
+    "performance": true
+  },
+  {
+    "source": "New Discovery",
+    "agency": "GTF",
+    "channel": "Demand Gen",
+    "performance": true
+  },
+  {
+    "source": "GTAW",
+    "agency": "GTF",
+    "channel": "Video Ads",
+    "performance": true
+  },
+  {
+    "source": "GTPL",
+    "agency": "GTF",
+    "channel": "Platter",
+    "performance": true
+  },
+  {
+    "source": "META-MV",
+    "agency": "Maven",
+    "channel": "Meta ads",
+    "performance": true
+  },
+  {
+    "source": "AJN",
+    "agency": "Aajneeti",
+    "channel": "Meta ads",
+    "performance": true
+  },
+  {
+    "source": "GRAF META",
+    "agency": "GRAFF",
+    "channel": "Meta ads",
+    "performance": true
+  },
+  {
+    "source": "PPC",
+    "agency": "Marasim",
+    "channel": "verified leads",
+    "performance": true
+  },
+  {
+    "source": "META WOLF",
+    "agency": "Wolf Media",
+    "channel": "Meta",
+    "performance": true
+  },
+  {
+    "source": "99 Acres",
+    "agency": "99 Acres",
+    "channel": "property portal",
+    "performance": false
+  }
+]

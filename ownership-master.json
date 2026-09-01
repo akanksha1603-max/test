@@ -1,0 +1,101 @@
+[
+  {
+    "region": "Chennai",
+    "salesHead": "Anis Kumar",
+    "costCentre": [
+      "Santanu Ghosh"
+    ]
+  },
+  {
+    "region": "Hyderabad",
+    "salesHead": "Anil Pedala",
+    "costCentre": [
+      "Santanu Ghosh"
+    ]
+  },
+  {
+    "region": "Kolkata",
+    "salesHead": "Sabhy Sachi",
+    "costCentre": [
+      "Santanu Ghosh"
+    ]
+  },
+  {
+    "region": "Bangalore",
+    "salesHead": "Santanu Ghosh",
+    "costCentre": [
+      "Santanu Ghosh"
+    ]
+  },
+  {
+    "region": "Mumbai",
+    "salesHead": "",
+    "costCentre": [
+      "Mayank Bist",
+      "Sanjeev Tiwari"
+    ],
+    "requiresProjectRule": true
+  },
+  {
+    "region": "Pune",
+    "salesHead": "Amit Madan",
+    "costCentre": [
+      "Amit Madan"
+    ]
+  },
+  {
+    "region": "Dubai",
+    "salesHead": "Sanjeev",
+    "costCentre": [
+      "Sanjeev"
+    ]
+  },
+  {
+    "region": "Gurugram",
+    "salesHead": "Brijesh",
+    "costCentre": [
+      "Brijesh"
+    ]
+  },
+  {
+    "region": "Delhi",
+    "salesHead": "Biswajit Ghosh",
+    "costCentre": [
+      "Biswajit Ghosh"
+    ]
+  },
+  {
+    "region": "Noida",
+    "salesHead": "Brijesh",
+    "costCentre": [
+      "Brijesh"
+    ]
+  },
+  {
+    "region": "Greater Noida West & Extension",
+    "salesHead": "Uday Pratap Singh",
+    "costCentre": [
+      "Uday Pratap Singh"
+    ]
+  },
+  {
+    "region": "Noida – Commercial",
+    "salesHead": "Pulkit Dhuria / Sethia / Chetan Gulati",
+    "costCentre": [
+      "Pulkit Dhuria",
+      "Sethia",
+      "Chetan Gulati"
+    ],
+    "requiresProjectRule": true
+  },
+  {
+    "region": "Rest of Noida",
+    "salesHead": "Pulkit Dhuria / Sethia / Chetan Gulati",
+    "costCentre": [
+      "Pulkit Dhuria",
+      "Sethia",
+      "Chetan Gulati"
+    ],
+    "requiresProjectRule": true
+  }
+]
